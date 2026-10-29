@@ -9,6 +9,7 @@ import { Tabs, TabsList, TabsTrigger } from "./components/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./components/select";
 import { Skeleton } from "./components/skeleton";
 import { createCatalogClient, defaultQuery, queryFromUrl, type Query } from "./client";
+import { applyTheme, readLocale, readTheme, writePreference } from "../src/preferences.mjs";
 
 const labels = {
   "en-US": { plugins: "Plugins", worlds: "Worlds", explore: "Explore", library: "Directory", guide: "Publishing guide", source: "Source on GitHub", add: "List your repository", tagline: "Find the right additions for your next story.", worldTagline: "A setting for every story you want to tell.", search: "Search by name, author or idea…", all: "All sources", official: "Official", community: "Community", categories: "Category", anyCategory: "All categories", language: "Package language", anyLanguage: "Any language", state: "Status", anyState: "Active & pending", indexed: "Indexed", pending: "Pending metadata", archived: "Archived", sort: "Sort by", updated: "Recently updated", relevance: "Relevance", name: "Name, A–Z", stars: "Repository stars", downloads: "Download requests", results: "results", details: "View details", version: "Version", compatibility: "Covel version", unknown: "Not declared", license: "License", download: "Download ZIP", preparing: "Preparing ZIP…", previous: "Previous", next: "Next", retry: "Try again", empty: "No matching packages", emptyText: "Try a different search or clear your filters.", reset: "Clear filters", error: "The directory couldn’t be loaded", filters: "Filters", close: "Close", local: "Local preview", localNote: "Showing local manifests. Live policy, download counts and downloads are unavailable.", indexedNote: "Indexed means metadata is complete. Review the source and permissions before installing.", metricNote: "Stars belong to the repository. Requests count prepared downloads, not installations.", maintain: "Build something for Covel", maintainNote: "Add a topic to your public repository. The directory will find it automatically.", copy: "Copy", copied: "Copied", branch: "Follow branch", pin: "Pinned commit", readme: "Read documentation", history: "Versions & source", noHistory: "Version history appears after the directory service has indexed this package.", development: "Development snapshot", release: "Release", conflict: "Version conflict", firstSeen: "First indexed", changed: "Content updated", published: "Published", unavailable: "This package is not available for download.", downloadNote: "Import this ZIP in Covel and review its permissions. Offline ZIPs stay local/pinned; they do not automatically enable update tracking.", addTitle: "Let the directory find you", addDescription: "In your GitHub repository’s About section, add either topic below. Include a valid package manifest and the files Covel needs to import it.", report: "Report a listing", errorDetail: "Package details are unavailable", back: "Back to results", hash: "Commit", ready: "ZIP ready", getFile: "Save ZIP", noApi: "Connect the shared service to enable downloads and version history.", page: "Page" },
@@ -80,8 +81,8 @@ function PackageDialog({ entryKey, close, client, locale, t }: { entryKey: strin
 
 export function CatalogApp({ config }: { config: CatalogConfig }) {
   const client = useMemo(() => createCatalogClient(config), [config]);
-  const [locale, setLocale] = useState<CatalogLocale>(() => localStorage.getItem("covel-locale") === "zh-CN" ? "zh-CN" : "en-US");
-  const [dark, setDark] = useState(() => localStorage.getItem("covel-theme") === "dark");
+  const [locale, setLocale] = useState<CatalogLocale>(readLocale);
+  const [dark, setDark] = useState(() => readTheme() === "dark");
   const [query, setQuery] = useState<Query>(queryFromUrl);
   const [search, setSearch] = useState(query.q);
   const [cursor, setCursor] = useState<string | null>(() => window.history.state?.covel?.cursor ?? null);
@@ -96,8 +97,18 @@ export function CatalogApp({ config }: { config: CatalogConfig }) {
   const restoreScroll = useRef<number | null>(window.history.state?.covel?.scroll ?? null);
   const queryPending = useRef(true);
   const t = labels[locale];
-  useEffect(() => { document.documentElement.classList.toggle("dark", dark); localStorage.setItem("covel-theme", dark ? "dark" : "light"); }, [dark]);
-  useEffect(() => { document.documentElement.lang = locale; localStorage.setItem("covel-locale", locale); document.title = `${t[config.kind]} · Covel`; }, [locale, config.kind, t]);
+  useEffect(() => { applyTheme(dark ? "dark" : "light"); }, [dark]);
+  useEffect(() => { document.documentElement.lang = locale; document.title = `${t[config.kind]} · Covel`; }, [locale, config.kind, t]);
+  function toggleTheme() {
+    const next = !dark;
+    setDark(next);
+    writePreference("covel-theme", next ? "dark" : "light");
+  }
+  function toggleLocale() {
+    const next = locale === "en-US" ? "zh-CN" : "en-US";
+    setLocale(next);
+    writePreference("covel-locale", next);
+  }
   function navigate(next: { query: Query; cursor: string | null; history: (string | null)[]; selected: string | null; scroll: number; detailFromList?: boolean }, mode: "push" | "replace" = "push") {
     window.history.replaceState({ ...window.history.state, covel: { query, cursor, history, selected, ...window.history.state?.covel, scroll: window.scrollY } }, "");
     const params = new URLSearchParams();
@@ -148,7 +159,7 @@ export function CatalogApp({ config }: { config: CatalogConfig }) {
   </>;
   return <div className="catalog-frame">
     <a className="skip-link" href="#results">Skip to results</a>
-    <header className="frame-header"><a href={config.siteUrl} className="brand"><span className="brand-mark">c</span><span>covel</span><span className="brand-divider"/><span className="brand-caption">{t.explore}</span></a><div className="header-actions"><Button variant="ghost" size="icon" onClick={() => setLocale(locale === "en-US" ? "zh-CN" : "en-US")} aria-label={locale === "en-US" ? "切换为中文" : "Switch to English"}><Languages/></Button><Button variant="ghost" size="icon" onClick={() => setDark(!dark)} aria-label={dark ? "Light theme" : "Dark theme"}>{dark ? <Sun/> : <Moon/>}</Button><Button variant="ghost" size="icon" className="mobile-menu" onClick={() => setFilters(true)} aria-label={t.filters}><Menu/></Button></div></header>
+    <header className="frame-header"><a href={config.siteUrl} className="brand"><span className="brand-mark">c</span><span>covel</span><span className="brand-divider"/><span className="brand-caption">{t.explore}</span></a><div className="header-actions"><Button variant="ghost" size="icon" onClick={toggleLocale} aria-label={locale === "en-US" ? "切换为中文" : "Switch to English"}><Languages/></Button><Button variant="ghost" size="icon" onClick={toggleTheme} aria-label={dark ? "Light theme" : "Dark theme"}>{dark ? <Sun/> : <Moon/>}</Button><Button variant="ghost" size="icon" className="mobile-menu" onClick={() => setFilters(true)} aria-label={t.filters}><Menu/></Button></div></header>
     <aside className="sidebar"><div className="eyebrow">{t.library}</div><nav aria-label="Directories"><a className={config.kind === "plugins" ? "active" : ""} href={config.kind === "plugins" ? config.siteUrl : config.siblingUrl}><Package size={18}/>{t.plugins}{config.kind === "plugins" && <span className="nav-dot"/>}</a><a className={config.kind === "worlds" ? "active" : ""} href={config.kind === "worlds" ? config.siteUrl : config.siblingUrl}><Globe2 size={18}/>{t.worlds}{config.kind === "worlds" && <span className="nav-dot"/>}</a></nav><div className="sidebar-filters">{filterContent}</div><div className="sidebar-bottom"><a href={config.guideUrl}><BookOpen size={16}/>{t.guide}<ExternalLink size={12}/></a><a href={config.repository}><ExternalLink size={16}/>{t.source}</a><p>Made for stories.<br/>Built with the community.</p></div></aside>
     <main className="content-sheet"><div className="page-heading"><div><h1>{t[config.kind]}<span className="title-dot">.</span></h1><p>{config.kind === "worlds" ? t.worldTagline : t.tagline}</p></div><Button variant="outline" onClick={() => setAdd(true)}><span className="plus">+</span>{t.add}</Button></div>
       <div className="search-bar"><Search size={18}/><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t.search} aria-label={t.search}/>{search && <Button variant="ghost" size="icon" aria-label={t.reset} onClick={() => setSearch("")}><X/></Button>}<span className="search-hint">⌕</span></div>

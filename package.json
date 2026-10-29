@@ -1,0 +1,18 @@
+{
+  "name": "covel-catalog",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=26"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "test": "node --test packages/catalog-kit/test/*.test.mjs scripts/catalog/*.test.mjs",
+    "start": "node service/main.mjs",
+    "backup": "node service/backup.mjs",
+    "policy:publish": "node scripts/catalog/publish-policy.mjs"
+  }
+}

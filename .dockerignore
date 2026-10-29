@@ -1,0 +1,9 @@
+.git
+**/node_modules
+.cache
+.env
+.env.*
+service/data
+service/backups
+backups
+coverage

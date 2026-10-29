@@ -36,3 +36,18 @@ node vendor/catalog-kit/tools/theme-bootstrap.mjs
 The exported `themeBootstrap()` from `@covel/catalog-kit/tools/theme-bootstrap` produces the same text, delimited by `<!-- covel-theme:start -->` and `<!-- covel-theme:end -->`. Consumer checks can compare that block with the function output. Replace any old handwritten theme bootstrap and conflicting fixed light `theme-color` metadata; do not include two initializers. This is a synchronous inline script, not `type="module"`, so it applies a saved light preference before CSS/React arrives. Its fallback colors match the current frame palette; the main CSS variables take over once loaded. The initializer and React import the same preference functions, and both update `color-scheme` with the root class.
 
 Browser acceptance should cover missing/invalid storage, explicit light and dark, throwing storage getters and writes, theme toggle plus reload, and first paint with external JS/CSS blocked under a light OS preference. Theme storage is origin-specific: the two hostnames share behavior, not browser storage. This release changes theme initialization only; it does not change download modes or installation guidance.
+
+## Project and publishing entry points (0.3.2)
+
+Both directory shells explain their relationship to Covel and use the same labeled resource navigation in the sidebar, mobile menu and page footer. `CatalogConfig` requires these project links:
+
+| Field | Destination |
+| --- | --- |
+| `projectUrl` | `https://covel.cc/` |
+| `demoUrl` | `https://demo.covel.cc/` — the public demo requires the visitor's own API key |
+| `docsUrl` | `https://covel.cc/docs/en/` |
+| `projectRepository` | `https://github.com/ackness/covel` |
+
+Keep `repository` pointing to the current directory's source and `guideUrl` to its publishing guide. They are distinct from the Covel application source and user documentation. These links do not change `siteUrl`/`siblingUrl` or the consumer's deployment overrides.
+
+The contribution section and listing dialog share the same three steps: publish a public repository with valid package files; add either singular or plural Topic for the directory kind; wait for collection and metadata checks. Incomplete metadata remains pending. Each package in a multi-package repository has its own listing. Registration does not require a directory PR. This release changes discovery guidance and project navigation, not package installation or download protocols.

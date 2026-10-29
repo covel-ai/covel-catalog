@@ -32,6 +32,8 @@ function PackageDialog({ entryKey, close, client, locale, t }: { entryKey: strin
   const [versions, setVersions] = useState<VersionRecord[]>([]);
   const [revision, setRevision] = useState("");
   const [error, setError] = useState("");
+  const downloadAbort = useRef<AbortController | null>(null);
+  useEffect(() => () => { generation.current++; downloadAbort.current?.abort(); }, [entryKey, revision]);
   const [busy, setBusy] = useState(false);
   const [ticket, setTicket] = useState<{ url: string; artifact: { artifactSha256: string; filename: string } }>();
   const requestKey = useRef("");
@@ -57,7 +59,7 @@ function PackageDialog({ entryKey, close, client, locale, t }: { entryKey: strin
     {entry && <>
       <div className="detail-badges"><Badge variant="secondary">{entry.official ? t.official : t.community}</Badge><Badge variant="outline">{t[entry.status]}</Badge>{entry.fork && <Badge variant="outline">Fork</Badge>}</div>
       <dl className="detail-facts"><div><dt>{t.version}</dt><dd>{selected?.version ?? entry.version ?? "—"}</dd></div><div><dt>{t.compatibility}</dt><dd>{(selected ? selected.metadata?.covelVersion : entry.covelVersion) ?? t.unknown}</dd></div><div><dt>{t.license}</dt><dd>{(selected ? selected.metadata?.license : entry.license) ?? t.unknown}</dd></div><div><dt>{t.stars}</dt><dd>{count(entry.stars)}</dd></div><div><dt>{t.downloads}</dt><dd>{count(entry.downloadRequests)}</dd></div></dl>
-      <section className="detail-section"><h3>{t.history}</h3>{versions.length ? <Pick label={t.version} value={revision} onChange={(value) => { setRevision(value); setTicket(undefined); requestKey.current = crypto.randomUUID(); }} options={versions.map((v) => [v.revisionId, `${v.version ?? "—"} · ${v.channel === "development" ? t.development : t.release} · ${v.commitSha.slice(0, 7)}${v.conflict ? ` · ${t.conflict}` : ""}`])} /> : <p className="muted">{t.noHistory}</p>}
+      <section className="detail-section"><h3>{t.history}</h3>{versions.length ? <Pick label={t.version} value={revision} onChange={(value) => { generation.current++; downloadAbort.current?.abort(); setBusy(false); setError(""); setRevision(value); setTicket(undefined); requestKey.current = crypto.randomUUID(); }} options={versions.map((v) => [v.revisionId, `${v.version ?? "—"} · ${v.channel === "development" ? t.development : t.release} · ${v.commitSha.slice(0, 7)}${v.conflict ? ` · ${t.conflict}` : ""}`])} /> : <p className="muted">{t.noHistory}</p>}
         {sha && <div className="hash-line"><span>{t.hash}</span><code>{sha}</code><CopyButton value={sha} t={t} /></div>}
         {entry.installUrl && <div className="source-line"><span>{t.branch}</span><a href={entry.installUrl} target="_blank" rel="noreferrer">{entry.sourceRef?.name}<ExternalLink size={13} /></a><CopyButton value={entry.installUrl} t={t} /></div>}
         {pinnedUrl && <div className="source-line"><span>{t.pin}</span><a href={pinnedUrl} target="_blank" rel="noreferrer">{sha?.slice(0, 12)}<ExternalLink size={13} /></a><CopyButton value={pinnedUrl} t={t} /></div>}
@@ -67,7 +69,7 @@ function PackageDialog({ entryKey, close, client, locale, t }: { entryKey: strin
       <p className="muted small">{t.indexedNote}</p>
       <div className="download-panel"><p>{!client.api ? t.noApi : entry.status !== "indexed" ? t.unavailable : t.downloadNote}</p><Button disabled={!client.api || entry.status === "archived" || selected?.metadata?.status !== "indexed" || !revision || selected?.conflict || selected?.blocked || busy} onClick={async () => {
         setBusy(true); setError(""); const started = generation.current;
-        try { const result = await client.download(entry.key, revision, requestKey.current); if (started === generation.current) setTicket(result); }
+        try { downloadAbort.current?.abort(); downloadAbort.current = new AbortController(); const result = await client.download(entry.key, revision, requestKey.current, downloadAbort.current.signal); if (started === generation.current) setTicket(result); }
         catch (e) { if (started === generation.current) setError((e as Error).message); } finally { if (started === generation.current) setBusy(false); }
       }}><ArrowDownToLine />{busy ? t.preparing : t.download}</Button>
       {ticket && <div className="ticket"><a href={ticket.url} className="download-link">{t.getFile}<ArrowRight size={16} /></a><span>SHA-256</span><code>{ticket.artifact.artifactSha256}</code></div>}</div>
